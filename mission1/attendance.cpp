@@ -1,9 +1,6 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <vector>
-#include <map>
-#include <algorithm>
 #include <unordered_map>
 #include <sstream>
 
@@ -26,10 +23,10 @@ constexpr int SILVER_GRADE_REQUIRE_POINT = 30;
 struct BaseballMemberInfo {
 	int point;
 	int attend_wed_cnt;
-	int attend_weeken_cnt;
+	int attend_weekend_cnt;
 	GRADE grade;
 
-	BaseballMemberInfo() : point(0), attend_wed_cnt(0), attend_weeken_cnt(0), grade(GRADE::NORMAL) {}
+	BaseballMemberInfo() : point(0), attend_wed_cnt(0), attend_weekend_cnt(0), grade(GRADE::NORMAL) {}
 };
 std::unordered_map<string, BaseballMemberInfo> baseballMember;
 
@@ -39,7 +36,7 @@ void AddMemberPoint(string memberName, string attendDay) {
 		baseballMember[memberName].point += WEDNESDAY_POINT;
 	}
 	else if (attendDay == "saturday" || attendDay == "sunday") {
-		baseballMember[memberName].attend_weeken_cnt++;
+		baseballMember[memberName].attend_weekend_cnt++;
 		baseballMember[memberName].point += WEEKEND_POINT;
 	}
 	else {
@@ -47,27 +44,27 @@ void AddMemberPoint(string memberName, string attendDay) {
 	}
 }
 
-void AddMemberbonusPoint() {
-	for (auto& member : baseballMember) {
-		if (member.second.attend_wed_cnt >= BONUS_REQUIRE_DAYS) {
-			member.second.point += BONUS_POINT;
+void AddMemberBonusPoint() {
+	for (auto& [_, memberInfo] : baseballMember) {
+		if (memberInfo.attend_wed_cnt >= BONUS_REQUIRE_DAYS) {
+			memberInfo.point += BONUS_POINT;
 		}
-		if (member.second.attend_weeken_cnt >= BONUS_REQUIRE_DAYS) {
-			member.second.point += BONUS_POINT;
+		if (memberInfo.attend_weekend_cnt >= BONUS_REQUIRE_DAYS) {
+			memberInfo.point += BONUS_POINT;
 		}
 	}
 }
 
-void MemberGradeCheck() {
-	for (auto& member : baseballMember) {
-		if (member.second.point >= GOLD_GRADE_REQUIRE_POINT) {
-			member.second.grade = GRADE::GOLD;
+void ApplyMemberGrade() {
+	for (auto& [_, memberInfo] : baseballMember) {
+		if (memberInfo.point >= GOLD_GRADE_REQUIRE_POINT) {
+			memberInfo.grade = GRADE::GOLD;
 		}
-		else if (member.second.point >= SILVER_GRADE_REQUIRE_POINT) {
-			member.second.grade = GRADE::SILVER;
+		else if (memberInfo.point >= SILVER_GRADE_REQUIRE_POINT) {
+			memberInfo.grade = GRADE::SILVER;
 		}
 		else {
-			member.second.grade = GRADE::NORMAL;
+			memberInfo.grade = GRADE::NORMAL;
 		}
 	}
 }
@@ -82,24 +79,23 @@ ERROR_CODE CalculationMemberPoint(string attendanceDataFile) {
 				AddMemberPoint(memberName, attendDay);
 			}
 			else {
-				cout << "Invalid line format: " << info << "\n";
 				return ERROR_CODE::INVALID_FORMAT;
 			}
 		}
 		attendanceData.close();
 	}
 	else {
-		std::cout << "Invalid file: " << attendanceDataFile << std::endl;
+		
 		return ERROR_CODE::INVALID_FILE;
 	}
 
-	AddMemberbonusPoint();
+	AddMemberBonusPoint();
 
 	return ERROR_CODE::SUCCESS;
 }
 
-bool isRemovedPlayer(BaseballMemberInfo member) {
-	return (member.grade == GRADE::NORMAL && member.attend_wed_cnt == 0 && member.attend_weeken_cnt == 0);
+bool isRemovedPlayer(BaseballMemberInfo memberInfo) {
+	return (memberInfo.grade == GRADE::NORMAL && memberInfo.attend_wed_cnt == 0 && memberInfo.attend_weekend_cnt == 0);
 }
 
 void ResultPrint() {
@@ -122,9 +118,9 @@ void ResultPrint() {
 	cout << "\n";
 	cout << "Removed player\n";
 	cout << "==============\n";
-	for (const auto& member : baseballMember) {
-		if (isRemovedPlayer(member.second)) {
-			cout << member.first << "\n";
+	for (const auto& [name, memberInfo] : baseballMember) {
+		if (isRemovedPlayer(memberInfo)) {
+			cout << name << "\n";
 		}
 	}
 
@@ -135,9 +131,15 @@ int main() {
 	cout << "BaseBall Member Attendance Data File Path: ";
 	std::cin >> file;
 
-	if (CalculationMemberPoint(file) == ERROR_CODE::SUCCESS) {
-		MemberGradeCheck();
+	ERROR_CODE status = CalculationMemberPoint(file);
+	if (status == ERROR_CODE::INVALID_FILE) {
+		cout << "Invalid file: " << file << "\n";
+	}
+	else if (status == ERROR_CODE::INVALID_FORMAT) {
+		cout << "Invalid file format" << "\n";
+	}
+	else if (status == ERROR_CODE::SUCCESS) {
+		ApplyMemberGrade();
 		ResultPrint();
 	}
-
 }
